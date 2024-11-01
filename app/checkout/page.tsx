@@ -23,6 +23,14 @@ export default function CheckoutPage() {
   });
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const deliveryFee = 500; // Costo de envío
+  const totalWithDelivery = total + deliveryFee;
+
+  // Parsear el monto ingresado a número
+  const cashAmountNumber = parseFloat(formData.cashAmount || '0');
+
+  // Calcular el vuelto
+  const changeAmount = cashAmountNumber - totalWithDelivery;
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -40,9 +48,15 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (formData.paymentMethod === 'Efectivo' && !formData.cashAmount) {
-      alert('Por favor, ingresa con cuánto vas a pagar.');
-      return;
+    if (formData.paymentMethod === 'Efectivo') {
+      if (!formData.cashAmount) {
+        alert('Por favor, ingresa con cuánto vas a pagar.');
+        return;
+      }
+      if (isNaN(cashAmountNumber) || cashAmountNumber < totalWithDelivery) {
+        alert('El monto ingresado es insuficiente para cubrir el total.');
+        return;
+      }
     }
 
     if (
@@ -64,11 +78,11 @@ export default function CheckoutPage() {
             : 'Retiro en Local',
       },
       items: cart,
-      total: total + 500, // Incluyendo envío
+      total: totalWithDelivery, // Total incluyendo envío
       paymentMethod: formData.paymentMethod,
       cashAmount:
         formData.paymentMethod === 'Efectivo'
-          ? Number(formData.cashAmount)
+          ? cashAmountNumber
           : null,
       deliveryMethod: formData.deliveryMethod,
       status: 'pending',
@@ -83,7 +97,7 @@ export default function CheckoutPage() {
 
       // Limpiar el carrito y redirigir al usuario
       clearCart();
-      router.push(`/pedido-confirmado?orderId=${docRef.id}`)
+      router.push(`/pedido-confirmado?orderId=${docRef.id}`);
     } catch (error) {
       console.error('Error al enviar el pedido:', error);
       alert('Hubo un error al procesar tu pedido. Por favor, intenta de nuevo.');
@@ -119,12 +133,12 @@ export default function CheckoutPage() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-700">Envío</span>
-                <span className="text-gray-900">$500</span>
+                <span className="text-gray-900">${deliveryFee.toLocaleString()}</span>
               </div>
               <div className="flex justify-between font-semibold mt-2">
                 <span className="text-gray-900">Total</span>
                 <span className="text-gray-900">
-                  ${(total + 500).toLocaleString()}
+                  ${totalWithDelivery.toLocaleString()}
                 </span>
               </div>
             </div>
@@ -228,24 +242,40 @@ export default function CheckoutPage() {
               </select>
             </div>
             {formData.paymentMethod === 'Efectivo' && (
-              <div>
-                <label
-                  htmlFor="cashAmount"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  ¿Con cuánto vas a pagar?
-                </label>
-                <input
-                  type="number"
-                  name="cashAmount"
-                  id="cashAmount"
-                  required
-                  min={total + 500}
-                  value={formData.cashAmount}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm"
-                />
-              </div>
+              <>
+                <div>
+                  <label
+                    htmlFor="cashAmount"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    ¿Con cuánto vas a pagar?
+                  </label>
+                  <input
+                    type="number"
+                    name="cashAmount"
+                    id="cashAmount"
+                    required
+                    min={totalWithDelivery}
+                    value={formData.cashAmount}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 sm:text-sm"
+                  />
+                </div>
+                {/* Mostrar el vuelto */}
+                {formData.cashAmount && (
+                  <div className="mt-2">
+                    {changeAmount >= 0 ? (
+                      <p className="text-sm text-gray-700">
+                        Tu vuelto: <span className="font-semibold">${changeAmount.toLocaleString()}</span>
+                      </p>
+                    ) : (
+                      <p className="text-sm text-red-500">
+                        El monto ingresado es insuficiente.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </>
             )}
             <button
               type="submit"
